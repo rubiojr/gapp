@@ -6,7 +6,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 
+	"github.com/BurntSushi/toml"
 	"github.com/urfave/cli/v2"
 )
 
@@ -34,6 +36,10 @@ func main() {
 						Name:    "config",
 						Aliases: []string{"c"},
 						Usage:   "Configuration file path",
+					},
+					&cli.StringFlag{
+						Name:  "bundle-manifest",
+						Usage: "Bundle the binary",
 					},
 				},
 				Action: func(c *cli.Context) error {
@@ -155,5 +161,34 @@ func runBuild(c *cli.Context) error {
 	}
 
 	fmt.Printf("Successfully wrote binary to %s\n", outputBin)
+
+	manifest := c.String("bundle-manifest")
+	if manifest != "" {
+		fmt.Println("Bundling app bundle...")
+		if runtime.GOOS == "darwin" {
+			opts, err := readManifest(manifest)
+			if err != nil {
+				return fmt.Errorf("failed to read manifest file: %w", err)
+			}
+			return bundle(opts)
+
+		}
+	}
+
 	return nil
+}
+
+func readManifest(path string) (*Options, error) {
+	var options Options
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read manifest file: %w", err)
+	}
+
+	if err := toml.Unmarshal(data, &options); err != nil {
+		return nil, fmt.Errorf("failed to parse manifest file: %w", err)
+	}
+
+	return &options, nil
 }
