@@ -14,7 +14,7 @@ import (
 	webview "github.com/webview/webview_go"
 )
 
-//go:embed glance.example.yml
+//go:embed glance.yml
 var config []byte
 
 func main() {

@@ -27,7 +27,8 @@ func main() {
 					&cli.StringFlag{
 						Name:    "output",
 						Aliases: []string{"o"},
-						Usage:   "Output directory path",
+						Value:   "gapp.bin",
+						Usage:   "Output binary path",
 					},
 					&cli.StringFlag{
 						Name:    "config",
@@ -50,20 +51,38 @@ func main() {
 }
 
 func runBuild(c *cli.Context) error {
-	outputDir := c.String("output")
-	if outputDir == "" {
-		return fmt.Errorf("output directory is required")
-	}
-
 	configFile := c.String("config")
-	if configFile != "" {
-		fmt.Printf("Using config file: %s\n", configFile)
+	if configFile == "" {
+		return fmt.Errorf("config file path is required")
 	}
 
-	err := os.MkdirAll(outputDir, 0755)
+	fileInfo, err := os.Stat(configFile)
+	if err != nil {
+		return fmt.Errorf("config file does not exist: %w", err)
+	}
+	if fileInfo.IsDir() {
+		return fmt.Errorf("config path is a directory, not a file")
+	}
+
+	outputBin := c.String("output")
+	outputBin, err = filepath.Abs(outputBin)
+	if err != nil {
+		return fmt.Errorf("failed to get absolute path for output binary: %w", err)
+	}
+
+	outputDir, err := os.MkdirTemp("", "gapp-build-")
 	if err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
+
+	fmt.Printf("Output directory: %s\n", outputDir)
+	logFile := filepath.Join(outputDir, "build.log")
+
+	f, err := os.Create(logFile)
+	if err != nil {
+		return fmt.Errorf("failed to create log file: %w", err)
+	}
+	defer f.Close()
 
 	data, err := embedFS.ReadFile("_embed/main.go")
 	if err != nil {
@@ -71,6 +90,17 @@ func runBuild(c *cli.Context) error {
 	}
 
 	outputPath := filepath.Join(outputDir, "main.go")
+	err = os.WriteFile(outputPath, data, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write output file: %w", err)
+	}
+
+	data, err = os.ReadFile(configFile)
+	if err != nil {
+		return fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	outputPath = filepath.Join(outputDir, "glance.yml")
 	err = os.WriteFile(outputPath, data, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write output file: %w", err)
@@ -92,18 +122,27 @@ func runBuild(c *cli.Context) error {
 		return fmt.Errorf("failed to change to output directory: %w", err)
 	}
 
-	cmd := exec.Command("go", "build")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd := exec.Command("go", "mod", "tidy")
+	cmd.Env = os.Environ()
+	cmd.Env = append(cmd.Env, "GOPROXY=direct")
+	cmd.Stdout = f
+	cmd.Stderr = f
+
+	defer func() {
+		if err != nil {
+			lf, _ := os.ReadFile(logFile)
+			fmt.Println(string(lf))
+		}
+	}()
 
 	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("go build failed: %w", err)
 	}
 
-	cmd = exec.Command("go", "mod", "tidy")
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd = exec.Command("go", "build", "-o", outputBin)
+	cmd.Stdout = f
+	cmd.Stderr = f
 
 	err = cmd.Run()
 	if err != nil {
@@ -115,6 +154,6 @@ func runBuild(c *cli.Context) error {
 		return fmt.Errorf("failed to change back to original directory: %w", err)
 	}
 
-	fmt.Printf("Successfully wrote main.txt to %s\n", outputPath)
+	fmt.Printf("Successfully wrote binary to %s\n", outputBin)
 	return nil
 }
