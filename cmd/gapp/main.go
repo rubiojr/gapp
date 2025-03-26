@@ -46,6 +46,30 @@ func main() {
 					return runBuild(c)
 				},
 			},
+			{
+				Name:  "package",
+				Usage: "Package the application",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "manifest",
+						Usage:    "Bundle the binary",
+						Required: true,
+					},
+				},
+				Action: func(c *cli.Context) error {
+					manifest := c.String("manifest")
+					fmt.Println("Bundling app bundle...")
+					if runtime.GOOS == "darwin" {
+						opts, err := readManifest(manifest)
+						if err != nil {
+							return fmt.Errorf("failed to read manifest file: %w", err)
+						}
+						return bundle(opts)
+					}
+
+					return nil
+				},
+			},
 		},
 	}
 
