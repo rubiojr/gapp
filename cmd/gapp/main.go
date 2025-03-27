@@ -154,7 +154,6 @@ func runBuild(c *cli.Context) error {
 
 	cmd := exec.Command("go", "mod", "tidy")
 	cmd.Env = os.Environ()
-	cmd.Env = append(cmd.Env, "GOPROXY=direct")
 	cmd.Stdout = f
 	cmd.Stderr = f
 

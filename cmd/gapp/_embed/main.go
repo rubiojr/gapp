@@ -11,7 +11,7 @@ import (
 	_ "embed"
 
 	"github.com/rubiojr/gapp/pkg/glance"
-	webview "github.com/webview/webview_go"
+	webview "github.com/rubiojr/webview_go"
 )
 
 //go:embed glance.yml
