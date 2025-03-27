@@ -4,26 +4,25 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net"
 	"os"
-	"runtime"
 	"time"
 
 	_ "embed"
 
 	"github.com/rubiojr/gapp/pkg/glance"
-	webview "github.com/webview/webview_go"
+	webview "github.com/rubiojr/gapp/vendored/webview"
 )
 
 //go:embed glance.yml
 var config []byte
 
 func main() {
-	var host = "127.0.1.1"
-	// 127.0.1.1 is a no-no in macOS
-	if runtime.GOOS == "darwin" {
-		host = "localhost"
+	host := "127.0.0.1"
+	port, err := randomPort()
+	if err != nil {
+		panic(err)
 	}
-	var port = uint16(65529)
 
 	opts := []glance.Option{
 		glance.WithServerPort(port),
@@ -48,4 +47,16 @@ func main() {
 	time.Sleep(time.Second)
 
 	w.Run()
+}
+
+func randomPort() (port int, err error) {
+	var a *net.TCPAddr
+	if a, err = net.ResolveTCPAddr("tcp", "localhost:0"); err == nil {
+		var l *net.TCPListener
+		if l, err = net.ListenTCP("tcp", a); err == nil {
+			defer l.Close()
+			return l.Addr().(*net.TCPAddr).Port, nil
+		}
+	}
+	return
 }
