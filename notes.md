@@ -13,8 +13,3 @@ The public ServeApp:
 * Receives a context, backgrounds the HTTP server
 * Takes a string as the configuration, instead of a filesytem file
 * Takes a number of options, to configure the Glance server
-
-Whislist:
-
-* Glance could expose a UNIX socket instead of a TCP one
-* The ability to define the config programatically could be interesting (maybe already possible)
